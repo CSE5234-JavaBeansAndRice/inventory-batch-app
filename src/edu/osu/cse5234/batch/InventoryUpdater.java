@@ -27,7 +27,7 @@ public class InventoryUpdater {
 
 	private static Connection createConnection() throws SQLException, ClassNotFoundException {
 		Class.forName("org.h2.Driver");
-		Connection conn = DriverManager.getConnection("jdbc:h2:C:\\Users\\yucha\\Documents\\workspace\\cse5234\\h2db\\GumShopV2DB", "sa", "");
+		Connection conn = DriverManager.getConnection("jdbc:h2:C:\\Users\\yucha\\Documents\\workspace\\cse5234\\h2db\\GumShopV2DB;AUTO_SERVER=TRUE", "sa", "");
 		return conn;
 	}
 
@@ -49,12 +49,16 @@ public class InventoryUpdater {
 		Map<Integer, Integer> orderedItems = new HashMap<Integer, Integer>();
 		for (int orderId :  newOrderIds) {
 			ResultSet rset = conn.createStatement().executeQuery(
-	                "select ITEM_ID, QUANTITY from CUSTOMER_ORDER where CUSTOMER_ORDER_ID_FK = " + orderId);
+	                "select ITEM_ID, QUANTITY from CUSTOMER_ORDER_LINE_ITEM where CUSTOMER_ORDER_ID_FK = " + orderId);
 			while (rset.next()) {
-				System.out.println(rset.getInt("ITEM_ID"));
-				System.out.println(rset.getInt("QUANTITY"));
-			}
-			
+				int itemId = rset.getInt("ITEM_ID");
+				int quant = rset.getInt("QUANTITY");
+				if (orderedItems.containsKey(rset.getInt("ITEM_ID"))) {
+					orderedItems.replace(itemId, orderedItems.get(itemId) + quant);
+				} else {
+					orderedItems.put(itemId, quant);
+				}
+			}	
 		}
 
 		return orderedItems;
@@ -63,10 +67,18 @@ public class InventoryUpdater {
 	private static void updateInventory(Map<Integer, Integer> orderedItems, 
                 Connection conn) throws SQLException {
 		// TODO Auto-generated method stub
+
+		orderedItems.remove(0); //get rid of all items that have a 0 lol
 		for (Map.Entry<Integer, Integer> item : orderedItems.entrySet()) {
-			ResultSet rset = conn.createStatement().executeQuery("select AVAILABLE_QUANTITY from ITEM where ID = " + item.getKey());
-			int updatedInventory = rset.getInt(0) - item.getValue();
-			ResultSet rset2 = conn.createStatement().executeQuery("update ITEM set AVAILABLE_QUANTITY = " + updatedInventory + " where ID = " + item.getKey());
+			System.out.println(item.getKey() + " " + item.getValue());
+		} 
+		int updatedInventory = 0;
+		for (Map.Entry<Integer, Integer> item : orderedItems.entrySet()) {
+			ResultSet rset = conn.createStatement().executeQuery("select AVAILABLE_QUANTITY from ITEM where ITEM_NUMBER = " + item.getKey());
+			while (rset.next()) {
+				 updatedInventory = rset.getInt("AVAILABLE_QUANTITY") - item.getValue();
+			}
+			conn.createStatement().executeUpdate("update ITEM set AVAILABLE_QUANTITY = " + updatedInventory + " where ID = " + item.getKey());
 		}
 
 	}
@@ -75,7 +87,7 @@ public class InventoryUpdater {
                 Connection conn) throws SQLException {
 		// TODO Auto-generated method stub
 		for (int orderId :  newOrderIds) {
-			ResultSet rset = conn.createStatement().executeQuery("update CUSTOMER_ORDER set STATUS = 'Processed' WHERE ID = " + orderId);
+			conn.createStatement().executeUpdate("update CUSTOMER_ORDER set STATUS = 'Processed' WHERE ID = " + orderId);
 		}
 	}
 
