@@ -6,6 +6,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Map;
 
 public class InventoryUpdater {
@@ -26,7 +27,7 @@ public class InventoryUpdater {
 
 	private static Connection createConnection() throws SQLException, ClassNotFoundException {
 		Class.forName("org.h2.Driver");
-		Connection conn = DriverManager.getConnection("jdbc:h2:~/test", "sa", "");
+		Connection conn = DriverManager.getConnection("jdbc:h2:C:\\Users\\yucha\\Documents\\workspace\\cse5234\\h2db\\GumShopV2DB", "sa", "");
 		return conn;
 	}
 
@@ -45,19 +46,37 @@ public class InventoryUpdater {
 		// TODO Auto-generated method stub
 		// This method returns a map of two integers. The first Integer is item ID, and 
                  // the second is cumulative requested quantity across all new orders
-		return null;
+		Map<Integer, Integer> orderedItems = new HashMap<Integer, Integer>();
+		for (int orderId :  newOrderIds) {
+			ResultSet rset = conn.createStatement().executeQuery(
+	                "select ITEM_ID, QUANTITY from CUSTOMER_ORDER where CUSTOMER_ORDER_ID_FK = " + orderId);
+			while (rset.next()) {
+				System.out.println(rset.getInt("ITEM_ID"));
+				System.out.println(rset.getInt("QUANTITY"));
+			}
+			
+		}
+
+		return orderedItems;
 	}
 
 	private static void updateInventory(Map<Integer, Integer> orderedItems, 
                 Connection conn) throws SQLException {
 		// TODO Auto-generated method stub
+		for (Map.Entry<Integer, Integer> item : orderedItems.entrySet()) {
+			ResultSet rset = conn.createStatement().executeQuery("select AVAILABLE_QUANTITY from ITEM where ID = " + item.getKey());
+			int updatedInventory = rset.getInt(0) - item.getValue();
+			ResultSet rset2 = conn.createStatement().executeQuery("update ITEM set AVAILABLE_QUANTITY = " + updatedInventory + " where ID = " + item.getKey());
+		}
 
 	}
 
 	private static void updateOrderStatus(Collection<Integer> newOrderIds, 
                 Connection conn) throws SQLException {
 		// TODO Auto-generated method stub
-
+		for (int orderId :  newOrderIds) {
+			ResultSet rset = conn.createStatement().executeQuery("update CUSTOMER_ORDER set STATUS = 'Processed' WHERE ID = " + orderId);
+		}
 	}
 
 }
